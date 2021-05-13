@@ -1,5 +1,5 @@
-function getY(max, height, diff, value) {
-  return parseFloat((height - (value * height / max) + diff).toFixed(2));
+function getY(max, shift, height, diff, value) {
+  return parseFloat((height - ((value+shift) * height / max) + diff).toFixed(2));
 }
 
 function removeChildren(svg) {
@@ -57,7 +57,7 @@ export function sparkline(svg, entries, options) {
 
   // Get the stroke width; this is used to compute the
   // rendering offset.
-  const strokeWidth = parseFloat(svg.attributes["stroke-width"].value);
+  const strokeWidth = parseFloat(getComputedStyle(svg)["stroke-width"]);
 
   // By default, data must be formatted as an array of numbers or
   // an array of objects with the value key (like `[{value: 1}]`).
@@ -69,19 +69,22 @@ export function sparkline(svg, entries, options) {
   const values = entries.map(entry => fetch(entry));
 
   // The rendering width will account for the spot size.
-  const width = parseFloat(svg.attributes.width.value) - spotDiameter * 2;
+  const width = parseFloat(getComputedStyle(svg)["width"]) - spotDiameter * 2;
 
   // Get the SVG element's full height.
   // This is used
-  const fullHeight = parseFloat(svg.attributes.height.value);
+  const fullHeight = parseFloat(getComputedStyle(svg)["height"]);
 
   // The rendering height accounts for stroke width and spot size.
   const height = fullHeight - (strokeWidth * 2) - spotDiameter;
 
   // The maximum value. This is used to calculate the Y coord of
   // each sparkline datapoint.
-  const max = Math.max(...values);
-
+  //const max = Math.max(...values);
+  const min = Math.min(...values);
+  const shift = min>0?0:Math.abs(min);
+  const max = Math.max(...values, shift) + shift;
+  
   // Some arbitrary value to remove the cursor and spot out of
   // the viewing canvas.
   const offscreen = -1000;
@@ -97,12 +100,12 @@ export function sparkline(svg, entries, options) {
   const datapoints = [];
 
   // Hold the line coordinates.
-  const pathY = getY(max, height, strokeWidth + spotRadius, values[0]);
+  const pathY = getY(max, shift, height, strokeWidth + spotRadius, values[0]);
   let pathCoords = `M${spotDiameter} ${pathY}`;
 
   values.forEach((value, index) => {
     const x = index * offset + spotDiameter;
-    const y = getY(max, height, strokeWidth + spotRadius, value);
+    const y = getY(max, shift, height, strokeWidth + spotRadius, value);
 
     datapoints.push(Object.assign({}, entries[index], {
       index: index,
@@ -154,8 +157,8 @@ export function sparkline(svg, entries, options) {
   svg.appendChild(spot);
 
   const interactionLayer = buildElement("rect", {
-    width: svg.attributes.width.value,
-    height: svg.attributes.height.value,
+    width: getComputedStyle(svg)["width"],
+    height: getComputedStyle(svg)["height"],
     style: "fill: transparent; stroke: transparent",
     class: "sparkline--interaction-layer",
   });
